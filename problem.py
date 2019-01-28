@@ -4,6 +4,18 @@ import pandas as pd
 import numpy as np
 import rampwf as rw
 from sklearn.model_selection import StratifiedShuffleSplit
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.optim import lr_scheduler
+import numpy as np
+import time
+import os
+import argparse
+import torchvision
+from torch.autograd import Variable 
+from torchvision import transforms
+from tqdm import tqdm
 
 problem_title = 'Garbage-Classification'
 _target_column_name = 'type'
@@ -70,7 +82,7 @@ soft_score_matrix = np.array(soft_score_matrix)
 
 score_types = [
     rw.score_types.SoftAccuracy(name='sacc', score_matrix=soft_score_matrix, precision=3),
-    rw.score_types.Accuracy(name='acc'),
+    rw.score_types.Accuracy(name='acc')
     #rw.score_types.NegativeLogLikelihood(name='nll'),
 ]
 
@@ -80,18 +92,51 @@ def get_cv(X, y):
     return cv.split(X, y)
 
 
-def _read_data(path, f_name):
-    data = pd.read_csv(os.path.join(path, 'data', f_name))
-    y_array = data[_target_column_name].values
-    X_df = data.drop([_target_column_name], axis=1)
-    return X_df, y_array
+def _read_data(path='.', f_name='data'):
+    data_dir = "data"
+    input_shape = 224
+    batch_size = 32
+    mean = [0.5, 0.5, 0.5]
+    std = [0.5, 0.5, 0.5]
+    scale = 360
+    input_shape = 224
+    use_parallel = False
+    use_gpu = False
+    epochs = 1
+
+    data_transforms = transforms.Compose([
+            transforms.Resize(scale),
+            transforms.RandomResizedCrop(input_shape),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomRotation(degrees=90),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)])
+    image_datasets = {x: torchvision.datasets.ImageFolder(os.path.join(data_dir, x),
+                                      data_transforms) for x in ['train','test']}
+    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size,
+                                         shuffle=True, num_workers=4) for x in ['train','test']}
+    # return X_df, y_array
+    print(dataloaders['train'])
+    return dataloaders
 
 
 def get_train_data(path='.'):
-    f_name = 'train.csv'
-    return _read_data(path, f_name)
+    # f_name = 'train.csv'
+    # image_datasets = {x: torchvision.datasets.ImageFolder(os.path.join(data_dir, x),
+    #                                   data_transforms) for x in ['train']}
+    # dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size,
+    #                                      shuffle=True, num_workers=4) for x in ['train']}
+    X = np.load("data/train.npy")
+    y = np.load("data/train_label.npy")
+
+    return X,y 
 
 
 def get_test_data(path='.'):
-    f_name = 'test.csv'
-    return _read_data(path, f_name)
+
+    X = np.load("data/test.npy")
+    y = np.load("data/test_label.npy")
+
+    return X,y 
+
