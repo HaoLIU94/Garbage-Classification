@@ -102,7 +102,7 @@ class BatchClassifier(object):
                     gen_data = gen_valid
                     nums = nb_valid
 
-                    num_exemples = 0
+                num_exemples = 0
                 while nums / batch_size >= 1:
                     nums -= batch_size
                     data = next(gen_data)
