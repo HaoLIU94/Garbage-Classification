@@ -53,11 +53,10 @@ def data_augment(inputs):
 class BatchClassifier(object):
     def __init__(self):
         self.model = self._build_model()
-        self.epochs = 3
+        self.epochs = 1
 
     def fit(self, gen_builder):
-        batch_size = 16
-
+        batch_size = 64
 
         gen_train, gen_valid, nb_train, nb_valid =\
             gen_builder.get_train_valid_generators(
@@ -95,19 +94,26 @@ class BatchClassifier(object):
                 running_corrects = 0
 
                 gen_data = None
+                nums = 0
                 if phase == 'train':
                     gen_data = gen_train
+                    nums = nb_train
                 else:
                     gen_data = gen_valid
+                    nums = nb_valid
 
-                for data in tqdm(gen_data):
-                    # get the inputs
+                    num_exemples = 0
+                while nums / batch_size >= 1:
+                    nums -= batch_size
+                    data = next(gen_data)
+
                     inputs, labels = data
 
                     inputs = data_augment(inputs)
                     labels = torch.from_numpy(labels)
                     labels = labels.type(torch.LongTensor)
 
+                    num_exemples += labels.size()[0]
 
                     if use_gpu:
                         inputs, labels = inputs.cuda(), labels.cuda()
@@ -132,8 +138,8 @@ class BatchClassifier(object):
                     running_loss += loss.item()
                     running_corrects += int(torch.sum(preds == labels))
 
-                epoch_loss = running_loss / nb_train
-                epoch_acc = running_corrects / nb_valid
+                epoch_loss = running_loss / num_exemples
+                epoch_acc = running_corrects / num_exemples
 
                 if phase == 'train':
                     loss_values_train.append(epoch_loss)
@@ -142,14 +148,15 @@ class BatchClassifier(object):
                     loss_values_valid.append(epoch_loss)
                     acc_values_valid.append(epoch_acc)
 
-                print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
+
+                # print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 
                 # deep copy the model
                 # if phase == 'val' and epoch_acc > best_acc:
                 #     best_acc = epoch_acc
                 #     best_model_wts = self.model.state_dict()
 
-            print()
+            # print()
 
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(
@@ -161,13 +168,17 @@ class BatchClassifier(object):
         # return self.model, ((loss_values_train, acc_values_train), (loss_values_valid, acc_values_valid))
 
     def predict_proba(self, X):
-        pred = self.model.predict(X)
-        preds = []
-        for p in pred:
+        X = data_augment(X)
+        outputs = self.model(X)
+        res = []
+        if type(outputs) == tuple:
+            outputs, _ = outputs
+        _, preds = torch.max(outputs, 1)
+        for p in preds:
             p_prob = [0,0,0,0,0,0]
             p_prob[p] = 1
-            preds.append(p_prob)
-        return preds
+            res.append(p_prob)
+        return res
 
     def _build_model(self):
         model_conv = torchvision.models.resnet18(pretrained=True)
