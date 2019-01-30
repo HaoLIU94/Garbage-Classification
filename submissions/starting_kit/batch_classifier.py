@@ -16,6 +16,11 @@ which is incompatible.
 Other transformations on numpy array can be done in the image_preprocessor file.
 """
 def my_transforms(image):
+    """
+    Those are some simple transformation to have a correct size of inputs.
+    You can add any transformation you want but keep in mind that the return should be only
+    one input.
+    """
     scale = 360
     input_shape = 224
 
@@ -24,14 +29,19 @@ def my_transforms(image):
     image = TF.resize(image, scale)
     image = TF.resized_crop(image, i=68, j=68, h=input_shape, w=input_shape, size=input_shape)
     return image
-    # images.append(image)
-    # images.append(TF.hflip(image))
-    # images.append(TF.vflip(image))
-    # images.append(TF.rotate(image, 90))
-    # images.append(TF.rotate(image, 270))
-    # return images
+    """
+    Exemples of possible transformations :
+    TF.hflip(image))
+    TF.vflip(image))
+    TF.rotate(image, 90))
+    TF.rotate(image, 270))
+    """
 
 def data_transforms(inputs):
+    """
+    You can change mean & std but the rest shouldn't be except if you to change the 
+    size of input in your NN
+    """
     mean = [0.5, 0.5, 0.5]
     std = [0.5, 0.5, 0.5]
     res = torch.empty(inputs.shape[0], 3, 224, 224)
@@ -44,6 +54,13 @@ def data_transforms(inputs):
 
 
 class BatchClassifier(object):
+    """
+    gen_train, gen_valid... shouldn't be modified
+    You can change the rest like criterion, optimizer or even the function _build_model if you want to
+    
+    Accuracy on train and valid during the epochs are on data that are part of the train data for the
+    RAMP challenge, so you shouldn't expect to see the same values.
+    """
     def __init__(self):
         self.model = self._build_model()
         self.epochs = 1
@@ -139,7 +156,7 @@ class BatchClassifier(object):
                     acc_values_valid.append(epoch_acc)
 
 
-                # print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
+                print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(
