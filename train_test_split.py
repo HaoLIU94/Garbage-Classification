@@ -26,14 +26,14 @@ for cal in os.listdir(src_dir):
     count = 0
     l = len(images)
     for jpgfile in images:
-        #Split 400 to train
-        if count>=0 and count<0.7*l:
+        #Split 60% to train
+        if count>=0 and count<0.6*l:
             shutil.copy(jpgfile, direct_train)
-        #Split 50 to val
-        if count>=0.7*l and count<0.8*l:
+        #Split 20% to val
+        if count>=0.6*l and count<0.8*l:
             shutil.copy(jpgfile, direct_val)
-        #Split 250 to test
-        if count>=0.9*l and count<l:
+        #Split 20% to test
+        if count>=0.8*l and count<l:
             shutil.copy(jpgfile, direct_test)
         count +=1
 
