@@ -1,20 +1,20 @@
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 import torchvision.transforms.functional as TF
-import numpy as np
 import time
-import os
-import argparse
 import torchvision
-from torch.autograd import Variable 
-from torchvision import transforms
-from tqdm import tqdm
-from rampwf.workflows.image_classifier import get_nb_minibatches
 from PIL import Image
 
 
+"""
+Transformation of data is done in this file because data generator needs to keep the same
+type of data as in the beginning, and those transformation requires the data being an image
+which is incompatible.
+Other transformations on numpy array can be done in the image_preprocessor file.
+"""
 def my_transforms(image):
     scale = 360
     input_shape = 224
@@ -31,7 +31,7 @@ def my_transforms(image):
     # images.append(TF.rotate(image, 270))
     # return images
 
-def data_augment(inputs):
+def data_transforms(inputs):
     mean = [0.5, 0.5, 0.5]
     std = [0.5, 0.5, 0.5]
     res = torch.empty(inputs.shape[0], 3, 224, 224)
@@ -41,13 +41,6 @@ def data_augment(inputs):
         x = TF.normalize(x, std, mean)
         res[i] = x
     return res
-    # new_X = []
-    # imgs_tfm = my_transforms(inputs)
-    # for i in imgs_tfm:
-    #     img = TF.to_tensor(i)
-    #     img = TF.normalize(img, mean, std)
-    #     new_X.append(i)
-    # return new_X
 
 
 class BatchClassifier(object):
@@ -75,9 +68,6 @@ class BatchClassifier(object):
         acc_values_train = []
         acc_values_valid = []
 
-        # best_model_wts = self.model.state_dict()
-        # best_acc = 0.0
-
         for epoch in range(self.epochs):
             print('Epoch {}/{}'.format(epoch, self.epochs - 1))
             print('-' * 10)
@@ -103,13 +93,13 @@ class BatchClassifier(object):
                     nums = nb_valid
 
                 num_exemples = 0
-                while nums / batch_size >= 1:
+                while nums > 0:
                     nums -= batch_size
                     data = next(gen_data)
 
                     inputs, labels = data
 
-                    inputs = data_augment(inputs)
+                    inputs = data_transforms(inputs)
                     labels = torch.from_numpy(labels)
                     labels = labels.type(torch.LongTensor)
 
@@ -151,24 +141,13 @@ class BatchClassifier(object):
 
                 # print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 
-                # deep copy the model
-                # if phase == 'val' and epoch_acc > best_acc:
-                #     best_acc = epoch_acc
-                #     best_model_wts = self.model.state_dict()
-
-            # print()
-
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(
             time_elapsed // 60, time_elapsed % 60))
-        # print('Best val Acc: {:4f}'.format(best_acc))
 
-        # load best model weights
-        # self.model.load_state_dict(best_model_wts)
-        # return self.model, ((loss_values_train, acc_values_train), (loss_values_valid, acc_values_valid))
 
     def predict_proba(self, X):
-        X = data_augment(X)
+        X = data_transforms(X)
         outputs = self.model(X)
         res = []
         if type(outputs) == tuple:
@@ -183,7 +162,8 @@ class BatchClassifier(object):
     def _build_model(self):
         model_conv = torchvision.models.resnet18(pretrained=True)
         n_class = 6 # Number of filters in the bottleneck layer
-        # Since imagenet has 1000 classes , We need to change our last layer according to the number of classes we have
+        # Since imagenet has 1000 classes , We need to change our last layer according to 
+        # the number of classes we have
         num_ftrs = model_conv.fc.in_features
         model_conv.fc = nn.Linear(num_ftrs, n_class)
         return model_conv
